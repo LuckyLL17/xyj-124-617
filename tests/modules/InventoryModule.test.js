@@ -679,14 +679,19 @@ describe('InventoryModule', () => {
           <input type="number" id="invActionQty" value="1">
           <textarea id="invActionNote"></textarea>
           <input type="number" id="invActionAmount" value="0">
+          <select id="invActionOperator">
+            <option value="member-1">小明</option>
+            <option value="member-2">小红</option>
+          </select>
         </form>
       `;
     };
 
-    it('should consume item', () => {
+    it('should consume item with operator', () => {
       const item = inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 10, threshold: 5 });
       createActionForm();
       document.getElementById('invActionQty').value = '3';
+      document.getElementById('invActionOperator').value = 'member-1';
 
       const event = { preventDefault: vi.fn() };
       inventoryModule.handleAction(event, item.id, 'consume');
@@ -695,12 +700,18 @@ describe('InventoryModule', () => {
       expect(updatedItem.stock).toBe(7);
       expect(toast.show).toHaveBeenCalledWith('已消耗 3');
       expect(modal.close).toHaveBeenCalled();
+
+      const logs = inventoryService.getLogsByItem(item.id);
+      const consumeLog = logs.find(l => l.type === 'consume');
+      expect(consumeLog.operatorId).toBe('member-1');
+      expect(consumeLog.operatorName).toBe('小明');
     });
 
-    it('should restock item', () => {
+    it('should restock item with operator', () => {
       const item = inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 3, threshold: 5 });
       createActionForm();
       document.getElementById('invActionQty').value = '5';
+      document.getElementById('invActionOperator').value = 'member-2';
 
       const event = { preventDefault: vi.fn() };
       inventoryModule.handleAction(event, item.id, 'restock');
@@ -709,6 +720,27 @@ describe('InventoryModule', () => {
       expect(updatedItem.stock).toBe(8);
       expect(toast.show).toHaveBeenCalledWith('已补货 5');
       expect(modal.close).toHaveBeenCalled();
+
+      const logs = inventoryService.getLogsByItem(item.id);
+      const restockLog = logs.find(l => l.type === 'restock');
+      expect(restockLog.operatorId).toBe('member-2');
+      expect(restockLog.operatorName).toBe('小红');
+    });
+
+    it('should consume item without operator select', () => {
+      const item = inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 10, threshold: 5 });
+      document.body.innerHTML = `
+        <form>
+          <input type="number" id="invActionQty" value="2">
+          <textarea id="invActionNote"></textarea>
+        </form>
+      `;
+
+      const event = { preventDefault: vi.fn() };
+      inventoryModule.handleAction(event, item.id, 'consume');
+
+      const updatedItem = inventoryService.getItemById(item.id);
+      expect(updatedItem.stock).toBe(8);
     });
 
     it('should show error for invalid quantity', () => {
@@ -790,6 +822,38 @@ describe('InventoryModule', () => {
       const purchaseSpy = vi.spyOn(inventoryService, 'purchase');
       inventoryModule.onBillSaved('bill-123', 'item-123', null);
       expect(purchaseSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('checkAndNotifyLowStock', () => {
+    it('should show toast for low stock items', () => {
+      inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 3, threshold: 5 });
+
+      inventoryModule.checkAndNotifyLowStock();
+
+      expect(toast.show).toHaveBeenCalled();
+      const toastCalls = toast.show.mock.calls.map(c => c[0]);
+      expect(toastCalls.some(c => c.includes('库存不足'))).toBe(true);
+      expect(toastCalls.some(c => c.includes('卷纸'))).toBe(true);
+    });
+
+    it('should show toast for empty items', () => {
+      inventoryService.addItem({ name: '洗洁精', category: 'cleaning', unit: '瓶', stock: 0, threshold: 2 });
+
+      inventoryModule.checkAndNotifyLowStock();
+
+      expect(toast.show).toHaveBeenCalled();
+      const toastCalls = toast.show.mock.calls.map(c => c[0]);
+      expect(toastCalls.some(c => c.includes('缺货提醒'))).toBe(true);
+      expect(toastCalls.some(c => c.includes('洗洁精'))).toBe(true);
+    });
+
+    it('should not show toast when all items are in stock', () => {
+      inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 20, threshold: 5 });
+
+      inventoryModule.checkAndNotifyLowStock();
+
+      expect(toast.show).not.toHaveBeenCalled();
     });
   });
 });

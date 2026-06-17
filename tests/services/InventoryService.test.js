@@ -190,6 +190,16 @@ describe('InventoryService', () => {
       expect(consumeLogs[0].note).toBe('使用了3个');
     });
 
+    it('should record operator info in consume log', () => {
+      const item = inventoryService.addItem({ name: '测试', category: 'paper', stock: 10 });
+      inventoryService.consume(item.id, 2, '消耗说明', 'member-1', '小明');
+
+      const logs = inventoryService.getLogsByItem(item.id);
+      const consumeLog = logs.find(l => l.type === 'consume');
+      expect(consumeLog.operatorId).toBe('member-1');
+      expect(consumeLog.operatorName).toBe('小明');
+    });
+
     it('should return null if item not found', () => {
       const result = inventoryService.consume('nonexistent', 1);
       expect(result).toBeNull();
@@ -213,6 +223,16 @@ describe('InventoryService', () => {
       expect(restockLogs[0].quantity).toBe(10);
     });
 
+    it('should record operator info in restock log', () => {
+      const item = inventoryService.addItem({ name: '测试', category: 'paper', stock: 5 });
+      inventoryService.restock(item.id, 5, '补货说明', 'member-2', '小红');
+
+      const logs = inventoryService.getLogsByItem(item.id);
+      const restockLog = logs.find(l => l.type === 'restock');
+      expect(restockLog.operatorId).toBe('member-2');
+      expect(restockLog.operatorName).toBe('小红');
+    });
+
     it('should return null if item not found', () => {
       const result = inventoryService.restock('nonexistent', 1);
       expect(result).toBeNull();
@@ -229,6 +249,16 @@ describe('InventoryService', () => {
       const purchaseLogs = logs.filter(l => l.type === 'purchase');
       expect(purchaseLogs.length).toBe(1);
       expect(purchaseLogs[0].billId).toBe('bill-1');
+    });
+
+    it('should record operator info in purchase log', () => {
+      const item = inventoryService.addItem({ name: '测试', category: 'paper', stock: 5 });
+      inventoryService.purchase(item.id, 5, 'bill-1', '购买补货', 'member-3', '小刚');
+
+      const logs = inventoryService.getLogsByItem(item.id);
+      const purchaseLog = logs.find(l => l.type === 'purchase');
+      expect(purchaseLog.operatorId).toBe('member-3');
+      expect(purchaseLog.operatorName).toBe('小刚');
     });
 
     it('should return null if item not found', () => {
@@ -292,6 +322,36 @@ describe('InventoryService', () => {
       const logs = inventoryService.generateSampleLogs(items);
       expect(Array.isArray(logs)).toBe(true);
       expect(logs.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('checkLowStockAlerts', () => {
+    it('should return alerts for low stock items', () => {
+      inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 3, threshold: 5 });
+      inventoryService.addItem({ name: '洗衣液', category: 'cleaning', unit: '瓶', stock: 10, threshold: 5 });
+
+      const alerts = inventoryService.checkLowStockAlerts();
+      expect(alerts.length).toBe(1);
+      expect(alerts[0].itemName).toBe('卷纸');
+      expect(alerts[0].currentStock).toBe(3);
+      expect(alerts[0].threshold).toBe(5);
+      expect(alerts[0].shortage).toBe(2);
+      expect(alerts[0].isEmpty).toBe(false);
+    });
+
+    it('should mark empty items correctly', () => {
+      inventoryService.addItem({ name: '洗洁精', category: 'cleaning', unit: '瓶', stock: 0, threshold: 2 });
+
+      const alerts = inventoryService.checkLowStockAlerts();
+      expect(alerts.length).toBe(1);
+      expect(alerts[0].isEmpty).toBe(true);
+    });
+
+    it('should return empty array when no low stock items', () => {
+      inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 20, threshold: 5 });
+
+      const alerts = inventoryService.checkLowStockAlerts();
+      expect(alerts.length).toBe(0);
     });
   });
 });
