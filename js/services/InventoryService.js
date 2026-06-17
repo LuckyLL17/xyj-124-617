@@ -25,7 +25,7 @@ export class InventoryService {
         );
     }
 
-    addItem(data) {
+    addItem(data, operatorId, operatorName) {
         const item = {
             id: generateId(),
             name: data.name,
@@ -44,12 +44,14 @@ export class InventoryService {
             itemName: item.name,
             type: 'adjust',
             quantity: item.stock,
-            note: '初始化库存'
+            note: '初始化库存',
+            operatorId: operatorId || null,
+            operatorName: operatorName || ''
         });
         return item;
     }
 
-    updateItem(id, data) {
+    updateItem(id, data, operatorId, operatorName) {
         const item = this.getItemById(id);
         if (!item) return null;
         const oldStock = item.stock;
@@ -61,7 +63,9 @@ export class InventoryService {
                 itemName: updated.name,
                 type: 'adjust',
                 quantity: Math.abs(diff),
-                note: diff > 0 ? `手动调整 +${diff}` : `手动调整 ${diff}`
+                note: diff > 0 ? `手动调整 +${diff}` : `手动调整 ${diff}`,
+                operatorId: operatorId || null,
+                operatorName: operatorName || ''
             });
         }
         this.store.update('inventoryItems', list =>
@@ -75,7 +79,7 @@ export class InventoryService {
         this.store.update('inventoryLogs', list => (list || []).filter(l => l.itemId !== id));
     }
 
-    consume(id, quantity, note) {
+    consume(id, quantity, note, operatorId, operatorName) {
         const qty = parseInt(quantity) || 1;
         const item = this.getItemById(id);
         if (!item) return null;
@@ -90,12 +94,14 @@ export class InventoryService {
             itemName: item.name,
             type: 'consume',
             quantity: actualQty,
-            note: note || ''
+            note: note || '',
+            operatorId: operatorId || null,
+            operatorName: operatorName || ''
         });
         return { ...item, stock: newStock };
     }
 
-    restock(id, quantity, note) {
+    restock(id, quantity, note, operatorId, operatorName) {
         const qty = parseInt(quantity) || 1;
         const item = this.getItemById(id);
         if (!item) return null;
@@ -108,12 +114,14 @@ export class InventoryService {
             itemName: item.name,
             type: 'restock',
             quantity: qty,
-            note: note || ''
+            note: note || '',
+            operatorId: operatorId || null,
+            operatorName: operatorName || ''
         });
         return { ...item, stock: newStock };
     }
 
-    purchase(id, quantity, billId, note) {
+    purchase(id, quantity, billId, note, operatorId, operatorName) {
         const qty = parseInt(quantity) || 1;
         const item = this.getItemById(id);
         if (!item) return null;
@@ -127,7 +135,9 @@ export class InventoryService {
             type: 'purchase',
             quantity: qty,
             billId: billId,
-            note: note || '购买补货'
+            note: note || '购买补货',
+            operatorId: operatorId || null,
+            operatorName: operatorName || ''
         });
         return { ...item, stock: newStock };
     }
@@ -155,6 +165,8 @@ export class InventoryService {
             quantity: data.quantity,
             note: data.note || '',
             billId: data.billId || null,
+            operatorId: data.operatorId || null,
+            operatorName: data.operatorName || '',
             createdAt: Date.now()
         };
         this.store.update('inventoryLogs', list => [log, ...(list || [])].slice(0, 500));
@@ -225,14 +237,21 @@ export class InventoryService {
         ];
     }
 
-    generateSampleLogs(items) {
+    generateSampleLogs(items, members = []) {
         const logs = [];
         const types = ['consume', 'restock'];
+        const memberNames = members.length > 0
+            ? members.map(m => m.name)
+            : ['小明', '小红', '小刚'];
+        const memberIds = members.length > 0
+            ? members.map(m => m.id)
+            : ['sample-m1', 'sample-m2', 'sample-m3'];
         items.forEach(item => {
             const logCount = 3 + Math.floor(Math.random() * 4);
             for (let i = 0; i < logCount; i++) {
                 const type = types[Math.floor(Math.random() * types.length)];
                 const qty = 1 + Math.floor(Math.random() * 3);
+                const memberIndex = Math.floor(Math.random() * memberNames.length);
                 logs.push({
                     id: generateId(),
                     itemId: item.id,
@@ -241,6 +260,8 @@ export class InventoryService {
                     quantity: qty,
                     note: type === 'consume' ? `日常消耗 -${qty}` : `补充库存 +${qty}`,
                     billId: null,
+                    operatorId: memberIds[memberIndex],
+                    operatorName: memberNames[memberIndex],
                     createdAt: Date.now() - 86400000 * (i + 1) * (0.5 + Math.random())
                 });
             }

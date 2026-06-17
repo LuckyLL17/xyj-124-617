@@ -528,7 +528,7 @@ export class FormField {
         `;
     }
 
-    static inventoryQuantityForm(item, action) {
+    static inventoryQuantityForm(item, action, members = []) {
         const actionConfig = {
             consume: { title: '快捷消耗', label: '消耗数量', emoji: '➖', min: 1, max: item.stock || 1, placeholder: '消耗数量' },
             restock: { title: '快捷补货', label: '补货数量', emoji: '➕', min: 1, placeholder: '补货数量' },
@@ -536,6 +536,14 @@ export class FormField {
         };
         const cfg = actionConfig[action] || actionConfig.restock;
         const maxAttr = cfg.max ? `max="${cfg.max}"` : '';
+        const memberOptions = members.map(m => ({
+            value: m.id,
+            label: m.name,
+            selected: members.length === 1
+        }));
+        const memberSelect = members.length > 0
+            ? FormField.select('invActionOperator', '操作人', memberOptions, { required: true })
+            : '';
         return `
             <form onsubmit="window._app.handleInventoryAction(event, '${item.id}', '${action}')">
                 <div class="inv-action-header">
@@ -549,6 +557,7 @@ export class FormField {
                     <label>${cfg.label}（${item.unit}）</label>
                     <input type="number" id="invActionQty" required min="${cfg.min}" ${maxAttr} step="1" placeholder="${cfg.placeholder}" value="1">
                 </div>
+                ${memberSelect}
                 ${action === 'purchase' ? `
                     <div class="form-group">
                         <label>实际金额（元）</label>

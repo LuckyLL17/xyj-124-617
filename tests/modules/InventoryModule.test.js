@@ -673,10 +673,13 @@ describe('InventoryModule', () => {
   });
 
   describe('handleAction', () => {
-    const createActionForm = () => {
+    const createActionForm = (operatorValue = 'member-1') => {
       document.body.innerHTML = `
         <form>
           <input type="number" id="invActionQty" value="1">
+          <select id="invActionOperator">
+            <option value="${operatorValue}">小明</option>
+          </select>
           <textarea id="invActionNote"></textarea>
           <input type="number" id="invActionAmount" value="0">
         </form>
@@ -684,9 +687,11 @@ describe('InventoryModule', () => {
     };
 
     it('should consume item', () => {
+      const member = memberService.add('小明');
       const item = inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 10, threshold: 5 });
-      createActionForm();
+      createActionForm(member.id);
       document.getElementById('invActionQty').value = '3';
+      document.getElementById('invActionOperator').value = member.id;
 
       const event = { preventDefault: vi.fn() };
       inventoryModule.handleAction(event, item.id, 'consume');
@@ -695,12 +700,19 @@ describe('InventoryModule', () => {
       expect(updatedItem.stock).toBe(7);
       expect(toast.show).toHaveBeenCalledWith('已消耗 3');
       expect(modal.close).toHaveBeenCalled();
+
+      const logs = inventoryService.getLogsByItem(item.id);
+      const consumeLog = logs.find(l => l.type === 'consume');
+      expect(consumeLog.operatorId).toBe(member.id);
+      expect(consumeLog.operatorName).toBe('小明');
     });
 
     it('should restock item', () => {
+      const member = memberService.add('小明');
       const item = inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 3, threshold: 5 });
-      createActionForm();
+      createActionForm(member.id);
       document.getElementById('invActionQty').value = '5';
+      document.getElementById('invActionOperator').value = member.id;
 
       const event = { preventDefault: vi.fn() };
       inventoryModule.handleAction(event, item.id, 'restock');
@@ -709,12 +721,19 @@ describe('InventoryModule', () => {
       expect(updatedItem.stock).toBe(8);
       expect(toast.show).toHaveBeenCalledWith('已补货 5');
       expect(modal.close).toHaveBeenCalled();
+
+      const logs = inventoryService.getLogsByItem(item.id);
+      const restockLog = logs.find(l => l.type === 'restock');
+      expect(restockLog.operatorId).toBe(member.id);
+      expect(restockLog.operatorName).toBe('小明');
     });
 
     it('should show error for invalid quantity', () => {
+      const member = memberService.add('小明');
       const item = inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 10, threshold: 5 });
-      createActionForm();
+      createActionForm(member.id);
       document.getElementById('invActionQty').value = '0';
+      document.getElementById('invActionOperator').value = member.id;
 
       const event = { preventDefault: vi.fn() };
       inventoryModule.handleAction(event, item.id, 'consume');
@@ -723,12 +742,26 @@ describe('InventoryModule', () => {
       expect(modal.close).not.toHaveBeenCalled();
     });
 
+    it('should show error when no operator selected', () => {
+      const item = inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 10, threshold: 5 });
+      createActionForm('');
+      document.getElementById('invActionQty').value = '3';
+      document.getElementById('invActionOperator').value = '';
+
+      const event = { preventDefault: vi.fn() };
+      inventoryModule.handleAction(event, item.id, 'consume');
+
+      expect(toast.show).toHaveBeenCalledWith('请选择操作人');
+      expect(modal.close).not.toHaveBeenCalled();
+    });
+
     it('should handle purchase action with billsModule', () => {
-      memberService.add('小明');
+      const member = memberService.add('小明');
       const item = inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 3, threshold: 5, estimatedPrice: 3.5 });
-      createActionForm();
+      createActionForm(member.id);
       document.getElementById('invActionQty').value = '5';
       document.getElementById('invActionAmount').value = '17.5';
+      document.getElementById('invActionOperator').value = member.id;
 
       const event = { preventDefault: vi.fn() };
       inventoryModule.handleAction(event, item.id, 'purchase');
@@ -738,14 +771,17 @@ describe('InventoryModule', () => {
       expect(prefill.inventoryItemId).toBe(item.id);
       expect(prefill.inventoryQty).toBe(5);
       expect(prefill.amount).toBe('17.50');
+      expect(prefill.operatorId).toBe(member.id);
+      expect(prefill.operatorName).toBe('小明');
     });
 
     it('should show error for invalid purchase amount', () => {
-      memberService.add('小明');
+      const member = memberService.add('小明');
       const item = inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 3, threshold: 5 });
-      createActionForm();
+      createActionForm(member.id);
       document.getElementById('invActionQty').value = '5';
       document.getElementById('invActionAmount').value = '0';
+      document.getElementById('invActionOperator').value = member.id;
 
       const event = { preventDefault: vi.fn() };
       inventoryModule.handleAction(event, item.id, 'purchase');
@@ -754,16 +790,17 @@ describe('InventoryModule', () => {
       expect(billsModule.showAddModalWithPrefill).not.toHaveBeenCalled();
     });
 
-    it('should show toast when no members for purchase', () => {
+    it('should show toast when no operator selected for purchase', () => {
       const item = inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 3, threshold: 5 });
-      createActionForm();
+      createActionForm('');
       document.getElementById('invActionQty').value = '5';
       document.getElementById('invActionAmount').value = '17.5';
+      document.getElementById('invActionOperator').value = '';
 
       const event = { preventDefault: vi.fn() };
       inventoryModule.handleAction(event, item.id, 'purchase');
 
-      expect(toast.show).toHaveBeenCalledWith('请先添加成员');
+      expect(toast.show).toHaveBeenCalledWith('请选择操作人');
       expect(billsModule.showAddModalWithPrefill).not.toHaveBeenCalled();
     });
   });
@@ -773,9 +810,9 @@ describe('InventoryModule', () => {
       const item = inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 3, threshold: 5 });
       const purchaseSpy = vi.spyOn(inventoryService, 'purchase');
 
-      inventoryModule.onBillSaved('bill-123', item.id, 5);
+      inventoryModule.onBillSaved('bill-123', item.id, 5, 'member-1', '小明');
 
-      expect(purchaseSpy).toHaveBeenCalledWith(item.id, 5, 'bill-123');
+      expect(purchaseSpy).toHaveBeenCalledWith(item.id, 5, 'bill-123', '', 'member-1', '小明');
       const updatedItem = inventoryService.getItemById(item.id);
       expect(updatedItem.stock).toBe(8);
     });
