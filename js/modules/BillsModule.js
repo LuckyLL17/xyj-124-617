@@ -3,7 +3,19 @@ import { formatDate, getMonthStart } from '../utils/helpers.js';
 import { EmptyState } from '../components/EmptyState.js';
 import { FormField } from '../components/FormField.js';
 
+/**
+ * 账单管理模块
+ * 负责账单的增删改查、分摊结算和库存联动
+ */
 export class BillsModule {
+    /**
+     * 构造函数
+     * @param {Store} store - 全局状态存储
+     * @param {MemberService} memberService - 成员服务
+     * @param {BillService} billService - 账单服务
+     * @param {Modal} modal - 模态框组件
+     * @param {Toast} toast - 提示组件
+     */
     constructor(store, memberService, billService, modal, toast) {
         this.store = store;
         this.memberService = memberService;
@@ -12,6 +24,8 @@ export class BillsModule {
         this.toast = toast;
         this._currentEvidenceBase64 = null;
         this._onBillSavedCallback = null;
+        this._inventoryOperatorId = null;
+        this._inventoryOperatorName = null;
     }
 
     setOnBillSavedCallback(cb) {
@@ -167,6 +181,10 @@ export class BillsModule {
         }
     }
 
+    /**
+     * 显示添加账单弹窗
+     * @param {Object|null} prefill - 预填充数据
+     */
     showAddModal(prefill = null) {
         const members = this.memberService.getAll();
         if (members.length === 0) {
@@ -174,6 +192,9 @@ export class BillsModule {
             return;
         }
         this._currentEvidenceBase64 = null;
+        // 保存库存操作的操作人信息
+        this._inventoryOperatorId = prefill?.operatorId || null;
+        this._inventoryOperatorName = prefill?.operatorName || null;
         this.modal.open('添加账单', FormField.billForm(members, null, prefill));
         this._bindFileUpload();
     }
@@ -262,7 +283,7 @@ export class BillsModule {
         }
 
         if (!editId && inventoryItemId && this._onBillSavedCallback) {
-            this._onBillSavedCallback(billId, inventoryItemId, inventoryQty);
+            this._onBillSavedCallback(billId, inventoryItemId, inventoryQty, this._inventoryOperatorId, this._inventoryOperatorName);
         }
 
         this.modal.close();

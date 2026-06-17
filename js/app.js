@@ -83,8 +83,8 @@ class App {
             this.store, this.taskTypeService, this.modal, this.toast
         );
 
-        this.billsModule.setOnBillSavedCallback((billId, inventoryItemId, inventoryQty) => {
-            this.inventoryModule.onBillSaved(billId, inventoryItemId, inventoryQty);
+        this.billsModule.setOnBillSavedCallback((billId, inventoryItemId, inventoryQty, operatorId, operatorName) => {
+            this.inventoryModule.onBillSaved(billId, inventoryItemId, inventoryQty, operatorId, operatorName);
         });
 
         this._setupStoreSubscriptions();

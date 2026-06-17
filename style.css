@@ -1700,6 +1700,12 @@ body {
     color: var(--primary-dark);
 }
 
+.inv-log-operator {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0 0 4px 0;
+}
+
 .inv-log-time {
     font-size: 11px;
     color: var(--text-muted);
