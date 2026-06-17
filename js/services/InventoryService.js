@@ -75,7 +75,7 @@ export class InventoryService {
         this.store.update('inventoryLogs', list => (list || []).filter(l => l.itemId !== id));
     }
 
-    consume(id, quantity, note) {
+    consume(id, quantity, note, operatorId, operatorName) {
         const qty = parseInt(quantity) || 1;
         const item = this.getItemById(id);
         if (!item) return null;
@@ -90,12 +90,14 @@ export class InventoryService {
             itemName: item.name,
             type: 'consume',
             quantity: actualQty,
-            note: note || ''
+            note: note || '',
+            operatorId: operatorId || '',
+            operatorName: operatorName || ''
         });
         return { ...item, stock: newStock };
     }
 
-    restock(id, quantity, note) {
+    restock(id, quantity, note, operatorId, operatorName) {
         const qty = parseInt(quantity) || 1;
         const item = this.getItemById(id);
         if (!item) return null;
@@ -108,12 +110,14 @@ export class InventoryService {
             itemName: item.name,
             type: 'restock',
             quantity: qty,
-            note: note || ''
+            note: note || '',
+            operatorId: operatorId || '',
+            operatorName: operatorName || ''
         });
         return { ...item, stock: newStock };
     }
 
-    purchase(id, quantity, billId, note) {
+    purchase(id, quantity, billId, note, operatorId, operatorName) {
         const qty = parseInt(quantity) || 1;
         const item = this.getItemById(id);
         if (!item) return null;
@@ -127,7 +131,9 @@ export class InventoryService {
             type: 'purchase',
             quantity: qty,
             billId: billId,
-            note: note || '购买补货'
+            note: note || '购买补货',
+            operatorId: operatorId || '',
+            operatorName: operatorName || ''
         });
         return { ...item, stock: newStock };
     }
@@ -146,6 +152,20 @@ export class InventoryService {
             .slice(0, limit || 50);
     }
 
+    checkLowStockAlerts() {
+        const lowStockItems = this.getLowStockItems();
+        return lowStockItems.map(item => ({
+            itemId: item.id,
+            itemName: item.name,
+            currentStock: item.stock,
+            threshold: item.threshold,
+            unit: item.unit,
+            category: item.category,
+            shortage: item.threshold - item.stock,
+            isEmpty: item.stock === 0
+        }));
+    }
+
     _addLog(data) {
         const log = {
             id: generateId(),
@@ -155,6 +175,8 @@ export class InventoryService {
             quantity: data.quantity,
             note: data.note || '',
             billId: data.billId || null,
+            operatorId: data.operatorId || '',
+            operatorName: data.operatorName || '',
             createdAt: Date.now()
         };
         this.store.update('inventoryLogs', list => [log, ...(list || [])].slice(0, 500));

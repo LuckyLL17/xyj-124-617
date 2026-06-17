@@ -227,6 +227,9 @@ class App {
             this.remindersModule.render();
             this.dashboardModule.renderPendingTasks();
         }, 60000);
+        setInterval(() => {
+            this.inventoryModule.checkAndNotifyLowStock();
+        }, 300000);
     }
 
     _exposeGlobalHandlers() {
