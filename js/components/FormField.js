@@ -501,7 +501,17 @@ export class FormField {
         return FormField.select(id, '物品分类', options, { required: true });
     }
 
-    static inventoryItemForm(item = null) {
+    /**
+     * 生成物品编辑/添加表单
+     * @param {Object|null} item - 物品对象，编辑时传入
+     * @param {Array} [members] - 成员列表，用于选择操作人
+     * @returns {string} 表单HTML字符串
+     */
+    static inventoryItemForm(item = null, members = []) {
+        const memberOptions = members.map(m => ({
+            value: m.id,
+            label: m.name
+        }));
         return `
             <form onsubmit="window._app.handleSaveInventoryItem(event, '${item ? item.id : ''}')">
                 ${FormField.text('invItemName', '物品名称', { required: true, placeholder: '如：卷纸、洗衣液', value: item ? item.name : '', maxlength: 20 })}
@@ -519,6 +529,16 @@ export class FormField {
                     <label>预估单价（元）</label>
                     <input type="number" id="invItemPrice" min="0" step="0.01" placeholder="购买时预估单价" value="${item ? item.estimatedPrice : ''}">
                 </div>
+                ${memberOptions.length > 0 ? `
+                    <div class="form-group">
+                        <label>操作人</label>
+                        <select id="invItemOperator">
+                            <option value="">未选择</option>
+                            ${memberOptions.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
+                        </select>
+                        <p class="form-hint">记录本次操作的执行人</p>
+                    </div>
+                ` : ''}
                 ${FormField.textarea('invItemNote', '备注（可选）', { placeholder: '使用场景、规格等...', value: item ? item.note : '' })}
                 ${FormField.actions(
                     '<button type="button" class="btn btn-secondary" onclick="window._app.closeModal()">取消</button>',
@@ -528,7 +548,14 @@ export class FormField {
         `;
     }
 
-    static inventoryQuantityForm(item, action) {
+    /**
+     * 生成库存操作表单（消耗/补货/购买）
+     * @param {Object} item - 物品对象
+     * @param {string} action - 操作类型：consume/restock/purchase
+     * @param {Array} [members] - 成员列表，用于选择操作人
+     * @returns {string} 表单HTML字符串
+     */
+    static inventoryQuantityForm(item, action, members = []) {
         const actionConfig = {
             consume: { title: '快捷消耗', label: '消耗数量', emoji: '➖', min: 1, max: item.stock || 1, placeholder: '消耗数量' },
             restock: { title: '快捷补货', label: '补货数量', emoji: '➕', min: 1, placeholder: '补货数量' },
@@ -536,6 +563,10 @@ export class FormField {
         };
         const cfg = actionConfig[action] || actionConfig.restock;
         const maxAttr = cfg.max ? `max="${cfg.max}"` : '';
+        const memberOptions = members.map(m => ({
+            value: m.id,
+            label: m.name
+        }));
         return `
             <form onsubmit="window._app.handleInventoryAction(event, '${item.id}', '${action}')">
                 <div class="inv-action-header">
@@ -554,6 +585,15 @@ export class FormField {
                         <label>实际金额（元）</label>
                         <input type="number" id="invActionAmount" required min="0" step="0.01" placeholder="输入购买实际花费" value="${item.estimatedPrice ? (item.estimatedPrice * 1).toFixed(2) : ''}">
                         <p class="form-hint">填写后将自动创建账单记录</p>
+                    </div>
+                ` : ''}
+                ${memberOptions.length > 0 ? `
+                    <div class="form-group">
+                        <label>操作人</label>
+                        <select id="invActionOperator" required>
+                            <option value="">请选择操作人</option>
+                            ${memberOptions.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
+                        </select>
                     </div>
                 ` : ''}
                 ${FormField.textarea('invActionNote', '备注（可选）', { placeholder: action === 'consume' ? '消耗说明...' : '来源、补充说明...' })}

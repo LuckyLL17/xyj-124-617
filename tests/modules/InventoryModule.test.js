@@ -775,7 +775,18 @@ describe('InventoryModule', () => {
 
       inventoryModule.onBillSaved('bill-123', item.id, 5);
 
-      expect(purchaseSpy).toHaveBeenCalledWith(item.id, 5, 'bill-123');
+      expect(purchaseSpy).toHaveBeenCalledWith(item.id, 5, 'bill-123', undefined, undefined, undefined);
+      const updatedItem = inventoryService.getItemById(item.id);
+      expect(updatedItem.stock).toBe(8);
+    });
+
+    it('should pass operator info to purchase when provided', () => {
+      const item = inventoryService.addItem({ name: '卷纸', category: 'paper', unit: '卷', stock: 3, threshold: 5 });
+      const purchaseSpy = vi.spyOn(inventoryService, 'purchase');
+
+      inventoryModule.onBillSaved('bill-123', item.id, 5, 'member-1', '小明');
+
+      expect(purchaseSpy).toHaveBeenCalledWith(item.id, 5, 'bill-123', undefined, 'member-1', '小明');
       const updatedItem = inventoryService.getItemById(item.id);
       expect(updatedItem.stock).toBe(8);
     });
