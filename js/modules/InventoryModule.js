@@ -3,7 +3,20 @@ import { formatDateTime } from '../utils/helpers.js';
 import { EmptyState } from '../components/EmptyState.js';
 import { FormField } from '../components/FormField.js';
 
+/**
+ * 物品库存模块类
+ * 负责物品库存的UI渲染和交互逻辑，包括物品列表、变动记录、低库存提醒等
+ */
 export class InventoryModule {
+    /**
+     * 构造函数
+     * @param {Store} store - 数据存储实例
+     * @param {InventoryService} inventoryService - 库存服务实例
+     * @param {MemberService} memberService - 成员服务实例
+     * @param {BillsModule} billsModule - 账单模块实例
+     * @param {Modal} modal - 弹窗组件实例
+     * @param {Toast} toast - 提示组件实例
+     */
     constructor(store, inventoryService, memberService, billsModule, modal, toast) {
         this.store = store;
         this.inventoryService = inventoryService;
@@ -13,6 +26,9 @@ export class InventoryModule {
         this.toast = toast;
     }
 
+    /**
+     * 渲染库存模块的所有内容
+     */
     render() {
         this.renderSummary();
         this.renderLowStockAlert();
@@ -21,6 +37,10 @@ export class InventoryModule {
         this.updateFilters();
     }
 
+    /**
+     * 渲染库存统计卡片
+     * 展示物品种类、总库存量、库存不足数量、预估总价值
+     */
     renderSummary() {
         const items = this.inventoryService.getAllItems();
         const lowStock = this.inventoryService.getLowStockItems();
@@ -37,6 +57,16 @@ export class InventoryModule {
         ].join('');
     }
 
+    /**
+     * 生成单个统计卡片的HTML
+     * @private
+     * @param {string} emoji - 图标emoji
+     * @param {string} title - 卡片标题
+     * @param {number|string} value - 统计数值
+     * @param {string} label - 说明文字
+     * @param {string} iconClass - 图标样式类名
+     * @returns {string} HTML字符串
+     */
     _statCard(emoji, title, value, label, iconClass) {
         return `
             <div class="stat-card">
@@ -50,6 +80,10 @@ export class InventoryModule {
         `;
     }
 
+    /**
+     * 渲染低库存提醒横幅
+     * 当有物品库存低于阈值时显示提醒
+     */
     renderLowStockAlert() {
         const container = document.getElementById('lowStockAlert');
         if (!container) return;
@@ -81,6 +115,10 @@ export class InventoryModule {
         `;
     }
 
+    /**
+     * 渲染物品列表
+     * 支持按分类、库存状态、搜索关键词过滤
+     */
     renderItems() {
         const container = document.getElementById('inventoryItems');
         if (!container) return;
@@ -164,6 +202,12 @@ export class InventoryModule {
         }).join('');
     }
 
+    /**
+     * 根据分类获取对应的背景色
+     * @private
+     * @param {string} category - 分类标识
+     * @returns {string} 背景色值
+     */
     _categoryBg(category) {
         const map = {
             paper: '#dbeafe',
@@ -176,6 +220,10 @@ export class InventoryModule {
         return map[category] || map.other;
     }
 
+    /**
+     * 渲染库存变动记录列表
+     * 支持按物品和变动类型过滤
+     */
     renderLogs() {
         const container = document.getElementById('inventoryLogs');
         if (!container) return;
@@ -211,6 +259,7 @@ export class InventoryModule {
                             </span>
                             ${type.name}
                         </p>
+                        ${log.operatorName ? `<p class="inv-log-operator">👤 ${log.operatorName}</p>` : ''}
                         ${log.note ? `<p class="inv-log-note">${log.note}</p>` : ''}
                         ${log.billId ? `<p class="inv-log-bill" onclick="window._app.scrollToBill('${log.billId}')">📎 关联账单</p>` : ''}
                         <span class="inv-log-time">${formatDateTime(log.createdAt)}</span>
@@ -220,6 +269,10 @@ export class InventoryModule {
         }).join('');
     }
 
+    /**
+     * 更新过滤器下拉框的选项
+     * 包括分类筛选和物品筛选
+     */
     updateFilters() {
         const catSelect = document.getElementById('invFilterCategory');
         const itemSelect = document.getElementById('invLogItemFilter');
@@ -243,16 +296,27 @@ export class InventoryModule {
         }
     }
 
+    /**
+     * 显示添加物品的弹窗
+     */
     showAddModal() {
         this.modal.open('添加物品', FormField.inventoryItemForm());
     }
 
+    /**
+     * 显示编辑物品的弹窗
+     * @param {string} itemId - 物品ID
+     */
     showEditModal(itemId) {
         const item = this.inventoryService.getItemById(itemId);
         if (!item) return;
         this.modal.open('编辑物品', FormField.inventoryItemForm(item));
     }
 
+    /**
+     * 显示快捷消耗弹窗
+     * @param {string} itemId - 物品ID
+     */
     showConsumeModal(itemId) {
         const item = this.inventoryService.getItemById(itemId);
         if (!item) return;
@@ -260,15 +324,25 @@ export class InventoryModule {
             this.toast.show('库存为空，请先补货');
             return;
         }
-        this.modal.open('快捷消耗', FormField.inventoryQuantityForm(item, 'consume'));
+        const members = this.memberService.getAll();
+        this.modal.open('快捷消耗', FormField.inventoryQuantityForm(item, 'consume', members));
     }
 
+    /**
+     * 显示快捷补货弹窗
+     * @param {string} itemId - 物品ID
+     */
     showRestockModal(itemId) {
         const item = this.inventoryService.getItemById(itemId);
         if (!item) return;
-        this.modal.open('快捷补货', FormField.inventoryQuantityForm(item, 'restock'));
+        const members = this.memberService.getAll();
+        this.modal.open('快捷补货', FormField.inventoryQuantityForm(item, 'restock', members));
     }
 
+    /**
+     * 显示购买补货弹窗（关联账单）
+     * @param {string} itemId - 物品ID
+     */
     showPurchaseModal(itemId) {
         const item = this.inventoryService.getItemById(itemId);
         if (!item) return;
@@ -289,6 +363,10 @@ export class InventoryModule {
         this.billsModule.showAddModalWithPrefill(prefill);
     }
 
+    /**
+     * 显示单个物品的变动记录弹窗
+     * @param {string} itemId - 物品ID
+     */
     showItemLogsModal(itemId) {
         const item = this.inventoryService.getItemById(itemId);
         if (!item) return;
@@ -309,6 +387,7 @@ export class InventoryModule {
                                 </span>
                                 ${type.name}
                             </p>
+                            ${log.operatorName ? `<p class="inv-log-operator">👤 ${log.operatorName}</p>` : ''}
                             ${log.note ? `<p class="inv-log-note">${log.note}</p>` : ''}
                             <span class="inv-log-time">${formatDateTime(log.createdAt)}</span>
                         </div>
@@ -318,6 +397,11 @@ export class InventoryModule {
         this.modal.open(`📋 ${item.name} - 变动记录`, `<div class="inv-logs-modal">${content}</div>`);
     }
 
+    /**
+     * 保存物品（新增或编辑）
+     * @param {Event} event - 表单提交事件
+     * @param {string} [editId] - 编辑时的物品ID，为空则表示新增
+     */
     saveItem(event, editId) {
         event.preventDefault();
         const data = {
@@ -343,6 +427,10 @@ export class InventoryModule {
         this.modal.close();
     }
 
+    /**
+     * 删除物品
+     * @param {string} itemId - 物品ID
+     */
     deleteItem(itemId) {
         const item = this.inventoryService.getItemById(itemId);
         if (!item) return;
@@ -351,10 +439,22 @@ export class InventoryModule {
         this.toast.show('物品已删除');
     }
 
+    /**
+     * 处理库存操作（消耗/补货/购买）
+     * @param {Event} event - 表单提交事件
+     * @param {string} itemId - 物品ID
+     * @param {string} action - 操作类型：consume/restock/purchase
+     */
     handleAction(event, itemId, action) {
         event.preventDefault();
         const qty = parseInt(document.getElementById('invActionQty').value) || 0;
         const note = document.getElementById('invActionNote')?.value?.trim() || '';
+        // 获取操作人信息
+        const operatorSelect = document.getElementById('invActionOperator');
+        const operatorId = operatorSelect?.value || '';
+        const operatorName = operatorSelect
+            ? (operatorSelect.options[operatorSelect.selectedIndex]?.text || '')
+            : '';
 
         if (qty <= 0) {
             this.toast.show('请输入有效数量');
@@ -362,15 +462,16 @@ export class InventoryModule {
         }
 
         if (action === 'consume') {
-            this.inventoryService.consume(itemId, qty, note);
+            this.inventoryService.consume(itemId, qty, note, operatorId, operatorName);
             this.toast.show(`已消耗 ${qty}`);
             this.modal.close();
             const item = this.inventoryService.getItemById(itemId);
+            // 低库存提醒
             if (item && item.stock <= item.threshold) {
                 setTimeout(() => this.toast.show(`提醒：${item.name} 库存不足`), 500);
             }
         } else if (action === 'restock') {
-            this.inventoryService.restock(itemId, qty, note);
+            this.inventoryService.restock(itemId, qty, note, operatorId, operatorName);
             this.toast.show(`已补货 ${qty}`);
             this.modal.close();
         } else if (action === 'purchase') {
@@ -397,6 +498,12 @@ export class InventoryModule {
         }
     }
 
+    /**
+     * 账单保存后的回调，用于关联库存购买记录
+     * @param {string} billId - 账单ID
+     * @param {string} inventoryItemId - 库存物品ID
+     * @param {number} inventoryQty - 库存变动数量
+     */
     onBillSaved(billId, inventoryItemId, inventoryQty) {
         if (inventoryItemId && inventoryQty) {
             this.inventoryService.purchase(inventoryItemId, inventoryQty, billId);

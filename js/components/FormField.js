@@ -492,6 +492,12 @@ export class FormField {
         return FormField.select(id, '账单类别', options, { required: true });
     }
 
+    /**
+     * 生成库存分类选择下拉框
+     * @param {string} id - 表单元素ID
+     * @param {string} selectedCategory - 当前选中的分类
+     * @returns {string} HTML字符串
+     */
     static inventoryCategorySelect(id, selectedCategory) {
         const options = Object.entries(INVENTORY_CATEGORIES).map(([key, val]) => ({
             value: key,
@@ -501,6 +507,30 @@ export class FormField {
         return FormField.select(id, '物品分类', options, { required: true });
     }
 
+    /**
+     * 生成操作人选择下拉框
+     * @param {string} id - 表单元素ID
+     * @param {Array} members - 成员列表
+     * @param {string} [selectedMemberId] - 当前选中的成员ID
+     * @returns {string} HTML字符串
+     */
+    static inventoryOperatorSelect(id, members, selectedMemberId) {
+        const options = members.map(m => ({
+            value: m.id,
+            label: m.name,
+            selected: m.id === selectedMemberId
+        }));
+        if (options.length === 0) {
+            options.unshift({ value: '', label: '暂无成员' });
+        }
+        return FormField.select(id, '操作人', options, { required: options.length > 0 && options[0].value !== '' });
+    }
+
+    /**
+     * 生成物品添加/编辑表单
+     * @param {Object} [item=null] - 编辑时传入的物品对象
+     * @returns {string} HTML字符串
+     */
     static inventoryItemForm(item = null) {
         return `
             <form onsubmit="window._app.handleSaveInventoryItem(event, '${item ? item.id : ''}')">
@@ -528,7 +558,14 @@ export class FormField {
         `;
     }
 
-    static inventoryQuantityForm(item, action) {
+    /**
+     * 生成库存数量操作表单（消耗/补货/购买）
+     * @param {Object} item - 物品对象
+     * @param {string} action - 操作类型：consume/restock/purchase
+     * @param {Array} [members=[]] - 成员列表，用于操作人选择
+     * @returns {string} HTML字符串
+     */
+    static inventoryQuantityForm(item, action, members = []) {
         const actionConfig = {
             consume: { title: '快捷消耗', label: '消耗数量', emoji: '➖', min: 1, max: item.stock || 1, placeholder: '消耗数量' },
             restock: { title: '快捷补货', label: '补货数量', emoji: '➕', min: 1, placeholder: '补货数量' },
@@ -536,6 +573,7 @@ export class FormField {
         };
         const cfg = actionConfig[action] || actionConfig.restock;
         const maxAttr = cfg.max ? `max="${cfg.max}"` : '';
+        const firstMemberId = members.length > 0 ? members[0].id : '';
         return `
             <form onsubmit="window._app.handleInventoryAction(event, '${item.id}', '${action}')">
                 <div class="inv-action-header">
@@ -549,6 +587,7 @@ export class FormField {
                     <label>${cfg.label}（${item.unit}）</label>
                     <input type="number" id="invActionQty" required min="${cfg.min}" ${maxAttr} step="1" placeholder="${cfg.placeholder}" value="1">
                 </div>
+                ${members.length > 0 ? FormField.inventoryOperatorSelect('invActionOperator', members, firstMemberId) : ''}
                 ${action === 'purchase' ? `
                     <div class="form-group">
                         <label>实际金额（元）</label>
