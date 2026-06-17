@@ -262,7 +262,8 @@ export class BillsModule {
         }
 
         if (!editId && inventoryItemId && this._onBillSavedCallback) {
-            this._onBillSavedCallback(billId, inventoryItemId, inventoryQty);
+            const payer = this.memberService.getById(payerId);
+            this._onBillSavedCallback(billId, inventoryItemId, inventoryQty, payerId, payer?.name || '');
         }
 
         this.modal.close();

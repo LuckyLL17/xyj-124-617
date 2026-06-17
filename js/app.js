@@ -122,7 +122,7 @@ class App {
             const inventoryItems = this.inventoryService.generateSampleItems();
             this.store.set('inventoryItems', inventoryItems);
 
-            const inventoryLogs = this.inventoryService.generateSampleLogs(inventoryItems);
+            const inventoryLogs = this.inventoryService.generateSampleLogs(inventoryItems, members);
             this.store.set('inventoryLogs', inventoryLogs);
 
             const messages = this.messageService.generateSampleMessages(members);

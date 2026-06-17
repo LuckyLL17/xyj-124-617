@@ -176,6 +176,12 @@ export class InventoryModule {
         return map[category] || map.other;
     }
 
+    _getMemberName(memberId) {
+        if (!memberId) return '';
+        const member = this.memberService.getById(memberId);
+        return member ? member.name : '';
+    }
+
     renderLogs() {
         const container = document.getElementById('inventoryLogs');
         if (!container) return;
@@ -211,6 +217,7 @@ export class InventoryModule {
                             </span>
                             ${type.name}
                         </p>
+                        ${log.operatorName ? `<p class="inv-log-operator">👤 ${log.operatorName}</p>` : ''}
                         ${log.note ? `<p class="inv-log-note">${log.note}</p>` : ''}
                         ${log.billId ? `<p class="inv-log-bill" onclick="window._app.scrollToBill('${log.billId}')">📎 关联账单</p>` : ''}
                         <span class="inv-log-time">${formatDateTime(log.createdAt)}</span>
@@ -260,13 +267,15 @@ export class InventoryModule {
             this.toast.show('库存为空，请先补货');
             return;
         }
-        this.modal.open('快捷消耗', FormField.inventoryQuantityForm(item, 'consume'));
+        const members = this.memberService.getAll();
+        this.modal.open('快捷消耗', FormField.inventoryQuantityForm(item, 'consume', members));
     }
 
     showRestockModal(itemId) {
         const item = this.inventoryService.getItemById(itemId);
         if (!item) return;
-        this.modal.open('快捷补货', FormField.inventoryQuantityForm(item, 'restock'));
+        const members = this.memberService.getAll();
+        this.modal.open('快捷补货', FormField.inventoryQuantityForm(item, 'restock', members));
     }
 
     showPurchaseModal(itemId) {
@@ -309,6 +318,7 @@ export class InventoryModule {
                                 </span>
                                 ${type.name}
                             </p>
+                            ${log.operatorName ? `<p class="inv-log-operator">👤 ${log.operatorName}</p>` : ''}
                             ${log.note ? `<p class="inv-log-note">${log.note}</p>` : ''}
                             <span class="inv-log-time">${formatDateTime(log.createdAt)}</span>
                         </div>
@@ -355,14 +365,20 @@ export class InventoryModule {
         event.preventDefault();
         const qty = parseInt(document.getElementById('invActionQty').value) || 0;
         const note = document.getElementById('invActionNote')?.value?.trim() || '';
+        const operatorId = document.getElementById('invActionOperator')?.value || '';
+        const operatorName = this._getMemberName(operatorId);
 
         if (qty <= 0) {
             this.toast.show('请输入有效数量');
             return;
         }
+        if (!operatorId) {
+            this.toast.show('请选择操作人');
+            return;
+        }
 
         if (action === 'consume') {
-            this.inventoryService.consume(itemId, qty, note);
+            this.inventoryService.consume(itemId, qty, note, operatorId, operatorName);
             this.toast.show(`已消耗 ${qty}`);
             this.modal.close();
             const item = this.inventoryService.getItemById(itemId);
@@ -370,7 +386,7 @@ export class InventoryModule {
                 setTimeout(() => this.toast.show(`提醒：${item.name} 库存不足`), 500);
             }
         } else if (action === 'restock') {
-            this.inventoryService.restock(itemId, qty, note);
+            this.inventoryService.restock(itemId, qty, note, operatorId, operatorName);
             this.toast.show(`已补货 ${qty}`);
             this.modal.close();
         } else if (action === 'purchase') {
@@ -391,15 +407,17 @@ export class InventoryModule {
                 amount: amount.toFixed(2),
                 note: note || `购买 ${item.name} × ${qty} ${item.unit}`,
                 inventoryItemId: itemId,
-                inventoryQty: qty
+                inventoryQty: qty,
+                operatorId: operatorId,
+                operatorName: operatorName
             };
             this.billsModule.showAddModalWithPrefill(prefill);
         }
     }
 
-    onBillSaved(billId, inventoryItemId, inventoryQty) {
+    onBillSaved(billId, inventoryItemId, inventoryQty, operatorId, operatorName) {
         if (inventoryItemId && inventoryQty) {
-            this.inventoryService.purchase(inventoryItemId, inventoryQty, billId);
+            this.inventoryService.purchase(inventoryItemId, inventoryQty, billId, '', operatorId, operatorName);
         }
     }
 }
